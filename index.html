@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motohours Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Motohours Tracker</h1>
+            <div class="datetime" id="datetime"></div>
+        </header>
+
+        <div class="login-section" id="loginSection">
+            <div class="login-card">
+                <h2>User Login</h2>
+                <div class="form-group">
+                    <label for="userSelect">Select User:</label>
+                    <select id="userSelect" class="user-select">
+                        <option value="">Choose user</option>
+                        <option value="Miso">Miso</option>
+                        <option value="Stano">Stano</option>
+                        <option value="Juro">Juro</option>
+                        <option value="Marek">Marek</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="passwordInput">Password:</label>
+                    <input type="password" id="passwordInput" placeholder="Enter password" class="password-input">
+                </div>
+                <button onclick="checkPassword()" class="login-btn">Login</button>
+                <p class="error-message" id="errorMessage"></p>
+                <div class="user-info" id="userInfo" style="display: none;">
+                    <p>Logged in as: <span id="currentUserName"></span></p>
+                    <button onclick="logout()" class="logout-btn">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content" id="mainContent" style="display: none;">
+            <div class="form-card">
+                <h2>Add New Entry</h2>
+                <div class="user-display">
+                    <p>Logged in as: <strong id="mainUserName"></strong></p>
+                </div>
+                <form id="motohoursForm">
+                    <div class="form-group">
+                        <label for="motohours">Motohours:</label>
+                        <input type="number" id="motohours" step="0.1" min="0" required placeholder="Enter motohours">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="batteryCapacity">Battery Capacity (%):</label>
+                        <input type="number" id="batteryCapacity" min="0" max="100" required placeholder="Enter battery capacity">
+                    </div>
+
+                    <button type="submit" class="submit-btn">Add Entry</button>
+                </form>
+                
+                <div class="charging-section">
+                    <h3>Charging Control</h3>
+                    <div class="charging-buttons">
+                        <button id="startChargingBtn" onclick="startCharging()" class="charging-btn start-btn">Start Charging</button>
+                        <button id="stopChargingBtn" onclick="stopCharging()" class="charging-btn stop-btn" disabled>Stop Any Charging</button>
+                    </div>
+                    <div class="charging-status" id="chargingStatus">
+                        <p>No active charging session</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <h2>All Entries</h2>
+                <div class="table-info">
+                    <p><span class="highlight">Your entries are highlighted in green</span></p>
+                </div>
+                <div class="table-container">
+                    <table id="entriesTable">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Name</th>
+                                <th>Motohours</th>
+                                <th>Battery Capacity</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="clearAllEntries()" class="clear-btn">Clear All Your Entries</button>
+            </div>
+
+            <div class="charging-table-card">
+                <h2>Charging Sessions</h2>
+                <div class="table-info">
+                    <p><span class="highlight">Your charging sessions are highlighted in green</span></p>
+                </div>
+                <div class="table-container">
+                    <table id="chargingTable">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Start Time</th>
+                                <th>Stop Time</th>
+                                <th>Duration</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="chargingTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="clearAllChargingSessions()" class="clear-btn">Clear All Your Charging Sessions</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
