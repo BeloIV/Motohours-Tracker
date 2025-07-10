@@ -18,9 +18,14 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState([])
+  const [usersLoading, setUsersLoading] = useState(true)
 
   // Set up axios defaults
-  axios.defaults.baseURL = '/api'
+  const apiUrl = import.meta.env.VITE_API_URL || 
+    (import.meta.env.DEV ? '/api' : 'https://regulusbackend.bytboyzserver.xyz/api')
+  
+  axios.defaults.baseURL = apiUrl
+  console.log('API Base URL set to:', apiUrl)
 
   // Add token to requests if it exists
   axios.interceptors.request.use((config) => {
@@ -52,7 +57,10 @@ export const AuthProvider = ({ children }) => {
     } else {
       setLoading(false)
     }
-    loadUsers()
+    // Load users after a short delay to ensure axios is configured
+    setTimeout(() => {
+      loadUsers()
+    }, 100)
   }, [])
 
   const checkAuth = async () => {
@@ -69,10 +77,48 @@ export const AuthProvider = ({ children }) => {
 
   const loadUsers = async () => {
     try {
-      const response = await axios.get('/auth/users')
-      setUsers(response.data.users)
+      setUsersLoading(true)
+      const fullUrl = axios.defaults.baseURL + '/auth/users'
+      console.log('Loading users from:', fullUrl)
+      console.log('Axios base URL:', axios.defaults.baseURL)
+      
+      // First, let's test if the API is reachable
+      try {
+        const healthCheck = await axios.get('/', { timeout: 5000 })
+        console.log('API health check response:', healthCheck.status)
+      } catch (healthError) {
+        console.warn('API health check failed:', healthError.message)
+      }
+      
+      const response = await axios.get('/auth/users', {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      })
+      
+      console.log('Response status:', response.status)
+      console.log('Response headers:', response.headers)
+      console.log('Users response:', response.data)
+      
+      if (response.data && response.data.users) {
+        setUsers(response.data.users)
+        console.log('Users loaded successfully:', response.data.users)
+      } else {
+        console.warn('No users found in response:', response.data)
+        setUsers([])
+      }
     } catch (error) {
       console.error('Failed to load users:', error)
+      console.error('Error response:', error.response?.data)
+      console.error('Error status:', error.response?.status)
+      console.error('Error headers:', error.response?.headers)
+      console.error('Full error:', error)
+      setUsers([]) // Ensure users is always an array
+      toast.error('Failed to load users. Please refresh the page.')
+    } finally {
+      setUsersLoading(false)
     }
   }
 
@@ -103,6 +149,7 @@ export const AuthProvider = ({ children }) => {
     users,
     isAuthenticated: !!user,
     loading,
+    usersLoading,
     login,
     logout,
     checkAuth

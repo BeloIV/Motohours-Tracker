@@ -5,7 +5,7 @@ services:
       context: ./database
     container_name: motohours-postgres
     ports:
-      - "5432:5432"
+      - "5436:5432"
     environment:
       - POSTGRES_DB=motohours_db
       - POSTGRES_USER=motohours_user
@@ -13,25 +13,32 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U motohours_user -d motohours_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   backend:
     build:
       context: ./backend
     container_name: motohours-backend
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
       - NODE_ENV=production
       - PORT=3000
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - FRONTEND_URL=http://localhost:5000
+      - FRONTEND_URL=https://regulus.bytboyzserver.xyz
       - DB_HOST=database
       - DB_PORT=5432
       - DB_NAME=motohours_db
       - DB_USER=motohours_user
       - DB_PASSWORD=motohours_password
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -39,9 +46,9 @@ services:
       context: ./frontend
     container_name: motohours-frontend
     ports:
-      - "5000:5000"
+      - "5002:5000"
     environment:
-      - VITE_API_URL=http://localhost:3000/api
+      - VITE_API_URL=https://regulusbackend.bytboyzserver.xyz/api
     depends_on:
       - backend
     restart: unless-stopped

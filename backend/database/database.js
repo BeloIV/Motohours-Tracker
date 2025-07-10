@@ -113,9 +113,6 @@ async function getAll(sql, params = []) {
     }
 }
 
-// Initialize database on module load
-initializeDatabase().catch(console.error);
-
 module.exports = {
     pool,
     runQuery,

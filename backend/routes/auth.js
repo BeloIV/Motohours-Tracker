@@ -1,9 +1,56 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { getRow } = require('../database/database');
+const { getRow, runQuery } = require('../database/database');
 const { generateToken } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Registration route
+router.post('/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Používateľské meno a heslo sú povinné' });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'Heslo musí mať aspoň 6 znakov' });
+        }
+
+        // Check if user already exists
+        const existingUser = await getRow(
+            'SELECT id FROM users WHERE username = $1',
+            [username]
+        );
+
+        if (existingUser) {
+            return res.status(400).json({ error: 'Používateľ s týmto menom už existuje' });
+        }
+
+        // Hash password
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        // Create user
+        const result = await runQuery(
+            'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username',
+            [username, passwordHash]
+        );
+
+        res.status(201).json({
+            message: 'Používateľ bol úspešne vytvorený',
+            user: {
+                id: result.id,
+                username: result.rows[0].username
+            }
+        });
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Interná chyba servera' });
+    }
+});
 
 // Login route
 router.post('/login', async (req, res) => {

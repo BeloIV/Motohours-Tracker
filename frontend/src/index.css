@@ -58,7 +58,26 @@ header h1 {
     min-width: 350px;
 }
 
-.login-card h2 {
+/* Register Section */
+.register-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+}
+
+.register-card {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    min-width: 350px;
+}
+
+.login-card h2,
+.register-card h2 {
     margin-bottom: 20px;
     color: #4a5568;
 }
@@ -102,6 +121,21 @@ header h1 {
 }
 
 .login-btn:hover {
+    transform: translateY(-2px);
+}
+
+.register-btn {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.register-btn:hover {
     transform: translateY(-2px);
 }
 

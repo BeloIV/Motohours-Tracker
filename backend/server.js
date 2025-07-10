@@ -12,6 +12,9 @@ const chargingRoutes = require('./routes/charging');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for rate limiting behind reverse proxy
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 
@@ -24,8 +27,16 @@ app.use(limiter);
 
 // CORS configuration
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5000',
-    credentials: true
+    origin: [
+        process.env.FRONTEND_URL || 'http://localhost:5000',
+        'https://regulus.bytboyzserver.xyz',
+        'http://regulus.bytboyzserver.xyz',
+        'http://localhost:5002',
+        'http://localhost:3002'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Body parsing middleware
@@ -45,15 +56,6 @@ app.get('/api/health', (req, res) => {
         message: 'Motohours Tracker Backend is running'
     });
 });
-
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../frontend/dist')));
-    
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
-    });
-}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
