@@ -23,9 +23,11 @@ const authenticateToken = (req, res, next) => {
 // Generate JWT token
 const generateToken = (user) => {
     return jwt.sign(
-        { 
-            id: user.id, 
-            username: user.username 
+        {
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            company_id: user.company_id
         },
         JWT_SECRET,
         { expiresIn: '24h' }

@@ -1,22 +1,31 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
-const Register = () => {
+const Register = ({ inviteToken, onSuccess }) => {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [companyName, setCompanyName] = useState(null)
+  const [tokenValid, setTokenValid] = useState(inviteToken ? null : true)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!inviteToken) return
+
+    axios.get(`/auth/invite/${inviteToken}`)
+      .then(res => {
+        setCompanyName(res.data.company_name)
+        setTokenValid(true)
+      })
+      .catch(() => {
+        setTokenValid(false)
+      })
+  }, [inviteToken])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-
-    if (!username || !password) {
-      toast.error('Používateľské meno a heslo sú povinné')
-      setLoading(false)
-      return
-    }
 
     if (password.length < 6) {
       toast.error('Heslo musí mať aspoň 6 znakov')
@@ -31,55 +40,78 @@ const Register = () => {
     }
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://regulusbackend.bytboyzserver.xyz/api'
-      const response = await axios.post(`${apiUrl}/auth/register`, {
+      await axios.post('/auth/register', {
         username,
-        password
+        password,
+        ...(inviteToken && { invite_token: inviteToken })
       })
 
-      toast.success('Používateľ bol úspešne vytvorený!')
-      setUsername('')
-      setPassword('')
-      setConfirmPassword('')
+      toast.success(inviteToken
+        ? `Vitajte v ${companyName}! Môžete sa prihlásiť.`
+        : 'Účet bol vytvorený! Môžete sa prihlásiť.'
+      )
+      if (onSuccess) onSuccess()
     } catch (error) {
-      const message = error.response?.data?.error || 'Chyba pri vytváraní používateľa'
-      toast.error(message)
+      toast.error(error.response?.data?.error || 'Chyba pri vytváraní účtu')
     } finally {
       setLoading(false)
     }
   }
 
+  if (inviteToken && tokenValid === null) {
+    return (
+      <div className="login-section">
+        <div className="login-card"><h2>Overujem pozvánku...</h2></div>
+      </div>
+    )
+  }
+
+  if (inviteToken && tokenValid === false) {
+    return (
+      <div className="login-section">
+        <div className="login-card">
+          <h2>Neplatná pozvánka</h2>
+          <p style={{ color: '#e53e3e' }}>Tento pozývací odkaz je neplatný alebo bol už použitý.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="register-section">
       <div className="register-card">
-        <h2>Pridanie nového používateľa</h2>
+        <h2>{inviteToken ? `Registrácia — ${companyName}` : 'Vytvorenie nového účtu'}</h2>
+        {!inviteToken && (
+          <p style={{ color: '#718096', fontSize: '14px', marginBottom: '16px' }}>
+            Registráciou vytvoríte novú spoločnosť a stanete sa jej administrátorom.
+          </p>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Používateľské meno:</label>
+            <label htmlFor="reg-username">Používateľské meno:</label>
             <input
-              id="username"
+              id="reg-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Zadajte používateľské meno"
-              className="username-input"
+              className="form-control"
               disabled={loading}
+              autoFocus
             />
           </div>
-          
           <div className="form-group">
-            <label htmlFor="password">Heslo:</label>
+            <label htmlFor="reg-password">Heslo:</label>
             <input
-              id="password"
+              id="reg-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Zadajte heslo (min. 6 znakov)"
-              className="password-input"
+              placeholder="Min. 6 znakov"
+              className="form-control"
               disabled={loading}
             />
           </div>
-
           <div className="form-group">
             <label htmlFor="confirmPassword">Potvrďte heslo:</label>
             <input
@@ -88,17 +120,16 @@ const Register = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Zadajte heslo znova"
-              className="password-input"
+              className="form-control"
               disabled={loading}
             />
           </div>
-          
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="register-btn"
-            disabled={loading}
+            disabled={loading || !username || !password || !confirmPassword}
           >
-            {loading ? 'Vytváram...' : 'Vytvoriť používateľa'}
+            {loading ? 'Vytváram...' : 'Vytvoriť účet'}
           </button>
         </form>
       </div>
@@ -106,4 +137,4 @@ const Register = () => {
   )
 }
 
-export default Register 
+export default Register

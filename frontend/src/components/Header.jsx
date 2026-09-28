@@ -5,25 +5,24 @@ const Header = ({ currentTime }) => {
   const { user, logout } = useAuth()
 
   const formatDateTime = (date) => {
-    const options = {
+    return date.toLocaleDateString('sk-SK', {
       weekday: 'long',
-      year: 'numeric',
-      month: 'long',
       day: 'numeric',
+      month: 'long',
       hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }
-    return date.toLocaleDateString('sk-SK', options)
+      minute: '2-digit'
+    })
   }
 
   return (
     <header>
-      <h1>Sledovač motohodín</h1>
+      <h1>Motohodiny</h1>
+      <div className="header-spacer" />
       <div className="datetime">{formatDateTime(currentTime)}</div>
       {user && (
         <div className="user-info">
-          <p>Prihlásený ako: {user.username}</p>
+          <p>{user.username}</p>
+          {user.role === 'admin' && <span className="role-badge">Admin</span>}
           <button onClick={logout} className="logout-btn">Odhlásiť</button>
         </div>
       )}

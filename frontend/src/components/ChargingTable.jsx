@@ -1,149 +1,129 @@
-import React from 'react'
+import React, { useState } from 'react'
 import axios from 'axios'
+import toast from 'react-hot-toast'
+import ConfirmDialog from './ConfirmDialog'
+import SessionDetail from './SessionDetail'
+import { batteryColor } from './BatteryInput'
 
-const ChargingTable = ({ sessions, currentUser, onSessionDeleted, currentPage, entriesPerPage, onPageChange }) => {
-  const handleDelete = async (sessionId) => {
-    if (window.confirm('Ste si istí, že chcete vymazať túto nabíjaciu reláciu?')) {
-      try {
-        await axios.delete(`/charging/${sessionId}`)
-        onSessionDeleted(sessionId)
-      } catch (error) {
-        console.error('Failed to delete charging session:', error)
+const ChargingTable = ({ sessions, currentUser, onSessionDeleted, onSessionUpdated, currentPage, entriesPerPage, onPageChange }) => {
+  const [confirm, setConfirm] = useState(null)
+  const [detail, setDetail] = useState(null)
+
+  const handleDelete = (sessionId) => {
+    setConfirm({
+      message: 'Vymazať túto nabíjaciu reláciu?',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          await axios.delete(`/charging/${sessionId}`)
+          setDetail(null)
+          onSessionDeleted(sessionId)
+        } catch (error) {
+          toast.error('Chyba pri mazaní relácie')
+        }
       }
-    }
+    })
   }
 
+  const formatDate = (value) => new Date(value).toLocaleDateString('sk-SK', { day: 'numeric', month: 'numeric' })
+  const formatTime = (value) => new Date(value).toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })
 
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleString('sk-SK')
-  }
-
-  const getStatusIcon = (status) => {
-    return status === 'active' ? '🟢 Aktívna' : '✅ Dokončená'
-  }
-
-  // Calculate pagination
   const totalPages = Math.ceil(sessions.length / entriesPerPage)
   const startIndex = (currentPage - 1) * entriesPerPage
-  const endIndex = startIndex + entriesPerPage
-  const currentSessions = sessions.slice(startIndex, endIndex)
+  const currentSessions = sessions.slice(startIndex, startIndex + entriesPerPage)
 
   if (sessions.length === 0) {
     return (
-      <div>
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Používateľ</th>
-                <th>Čas začiatku</th>
-                <th>Čas ukončenia</th>
-                <th>Trvanie</th>
-                <th>Stav</th>
-                <th>Akcie</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan="6" style={{ textAlign: 'center', color: '#718096' }}>
-                  Zatiaľ žiadne nabíjacie relácie
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
+      <div className="empty-state">
+        <p>Zatiaľ žiadne nabíjanie.</p>
+        <p className="empty-state__hint">Prvý záznam pribudne, keď spustíš nabíjanie vozíka.</p>
       </div>
     )
   }
 
   return (
     <div>
-      <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Používateľ</th>
-              <th>Čas začiatku</th>
-              <th>Čas ukončenia</th>
-              <th>Trvanie</th>
-              <th>Stav</th>
-              <th>Akcie</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentSessions.map(session => {
-              const isOwnSession = session.user_name === currentUser
-              return (
-                <tr 
-                  key={session.id}
-                  style={isOwnSession ? {
-                    backgroundColor: 'rgba(72, 187, 120, 0.1)',
-                    borderLeft: '4px solid #48bb78'
-                  } : {}}
-                >
-                  <td data-label="Používateľ">{session.user_name}</td>
-                  <td data-label="Čas začiatku">{formatDateTime(session.start_time)}</td>
-                  <td data-label="Čas ukončenia">{formatDateTime(session.stop_time)}</td>
-                  <td data-label="Trvanie">{session.duration_text || '-'}</td>
-                  <td data-label="Stav">{getStatusIcon(session.status)}</td>
-                  <td data-label="Akcie">
-                    {isOwnSession && session.status === 'completed' ? (
-                      <button 
-                        className="delete-btn" 
-                        onClick={() => handleDelete(session.id)}
-                      >
-                        Vymazať
-                      </button>
-                    ) : (
-                      <span className="no-action">-</span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button 
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="pagination-btn"
-            >
-              Predchádzajúca
-            </button>
-            
-            {/* Page Numbers */}
-            <div className="page-numbers">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-                <button
-                  key={pageNum}
-                  onClick={() => onPageChange(pageNum)}
-                  className={`page-number ${pageNum === currentPage ? 'active' : ''}`}
-                >
-                  {pageNum}
-                </button>
-              ))}
-            </div>
-            
-            <button 
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="pagination-btn"
-            >
-              Ďalšia
-            </button>
-          </div>
-        )}
-      </div>
+      <ConfirmDialog
+        message={confirm?.message}
+        onConfirm={confirm?.onConfirm}
+        onCancel={() => setConfirm(null)}
+      />
 
+      <SessionDetail
+        session={detail}
+        currentUser={currentUser}
+        onClose={() => setDetail(null)}
+        onDelete={handleDelete}
+        onUpdated={(updated) => { setDetail(updated); onSessionUpdated(updated) }}
+      />
+
+      <ul className="log">
+        {currentSessions.map(session => {
+          const isOwn = session.user_id === currentUser.id
+          const active = session.status === 'active'
+          const from = session.battery_start
+          const to = session.battery_end
+
+          return (
+            <li key={session.id}>
+              <button
+                type="button"
+                className={`log-row ${isOwn ? 'log-row--own' : ''} ${active ? 'log-row--active' : ''}`}
+                onClick={() => setDetail(session)}
+              >
+                <span className="log-row__who">
+                  <span className="log-row__vehicle">
+                    {session.vehicle_name || 'Bez vozíka'}
+                    {active && <span className="pill pill--charging">Nabíja sa</span>}
+                  </span>
+                  <span className="log-row__user">{session.user_name}</span>
+                </span>
+
+                <span className="log-row__battery">
+                  {from != null ? (
+                    <>
+                      <span className="battery-bar" aria-hidden="true">
+                        <i style={{ width: `${from}%`, background: batteryColor(from) }} />
+                        {to != null && <i className="battery-bar__ghost" style={{ width: `${to}%`, background: batteryColor(to) }} />}
+                      </span>
+                      <span className="log-row__battery-text">
+                        {from}%{to != null && <> &rarr; <strong style={{ color: batteryColor(to) }}>{to}%</strong></>}
+                      </span>
+                    </>
+                  ) : <span className="muted">—</span>}
+                </span>
+
+                <span className="log-row__mh mono">
+                  {session.motohours != null ? `${parseFloat(session.motohours).toFixed(1)} mh` : '—'}
+                </span>
+
+                <span className="log-row__when">
+                  <span>{formatDate(session.start_time)} {formatTime(session.start_time)}</span>
+                  <span className="muted">
+                    {active ? 'prebieha' : (session.duration_text && session.duration_text !== '-' ? session.duration_text : '< 1m')}
+                  </span>
+                </span>
+
+                <span className="log-row__chevron" aria-hidden="true">&rsaquo;</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="pagination-btn">&lsaquo;</button>
+          <div className="page-numbers">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+              <button key={n} onClick={() => onPageChange(n)} className={`page-number ${n === currentPage ? 'active' : ''}`}>{n}</button>
+            ))}
+          </div>
+          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="pagination-btn">&rsaquo;</button>
+        </div>
+      )}
     </div>
   )
 }
 
-export default ChargingTable 
+export default ChargingTable

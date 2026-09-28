@@ -8,23 +8,29 @@ import Header from './components/Header'
 function App() {
   const { isAuthenticated, loading } = useContext(AuthContext)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [showRegister, setShowRegister] = useState(false)
+  const [view, setView] = useState('login') // 'login' | 'register'
+  const [inviteToken, setInviteToken] = useState(null)
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
+    const timer = setInterval(() => setCurrentTime(new Date()), 30000)
     return () => clearInterval(timer)
+  }, [])
+
+  // Detect invite token in URL: ?invite=<token>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('invite')
+    if (token) {
+      setInviteToken(token)
+      setView('register')
+    }
   }, [])
 
   if (loading) {
     return (
       <div className="container">
         <div className="login-section">
-          <div className="login-card">
-            <h2>Loading...</h2>
-          </div>
+          <div className="login-card"><p className="muted">Načítavam…</p></div>
         </div>
       </div>
     )
@@ -33,46 +39,29 @@ function App() {
   return (
     <div className="container">
       <Header currentTime={currentTime} />
-      
+
       {isAuthenticated ? (
         <Dashboard />
       ) : (
         <div>
-          {showRegister ? (
+          {view === 'register' ? (
             <div>
-              <Register />
-              <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                <button 
-                  onClick={() => setShowRegister(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#667eea',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    fontSize: '14px'
-                  }}
-                >
-                  ← Späť na prihlásenie
+              <Register
+                inviteToken={inviteToken}
+                onSuccess={() => { setView('login'); setInviteToken(null) }}
+              />
+              <div className="auth-switch">
+                <button onClick={() => setView('login')} className="link-btn">
+                  &larr; Späť na prihlásenie
                 </button>
               </div>
             </div>
           ) : (
             <div>
               <Login />
-              <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                <button 
-                  onClick={() => setShowRegister(true)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#667eea',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    fontSize: '14px'
-                  }}
-                >
-                  Pridať nového používateľa
+              <div className="auth-switch">
+                <button onClick={() => setView('register')} className="link-btn">
+                  Vytvoriť nový účet
                 </button>
               </div>
             </div>
@@ -83,4 +72,4 @@ function App() {
   )
 }
 
-export default App 
+export default App

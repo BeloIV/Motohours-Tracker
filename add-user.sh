@@ -23,7 +23,7 @@ sudo docker-compose exec backend node scripts/add-user-with-hash.js "$USERNAME" 
 if [ $? -eq 0 ]; then
     echo ""
     echo "✅ User added successfully!"
-    echo "You can now login at https://regulus.bytboyzserver.xyz"
+    echo "You can now login at "
 else
     echo ""
     echo "❌ Failed to add user. Please check the error messages above."
@@ -47,14 +47,14 @@ PASSWORD=$2
 echo "🔄 Registering user: $USERNAME"
 echo "🔐 Sending credentials to API..."
 
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST https://regulusbackend.bytboyzserver.xyz/api/auth/register \
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://192.168.1.250:5002/api/auth/register \
     -H "Content-Type: application/json" \
     -d "{\"username\": \"$USERNAME\", \"password\": \"$PASSWORD\"}")
 
 if [ "$RESPONSE" -eq 201 ]; then
     echo ""
     echo "✅ User registered successfully!"
-    echo "You can now login at https://regulus.bytboyzserver.xyz"
+    echo "You can now login at "
 else
     echo ""
     echo "❌ Failed to register user. HTTP status: $RESPONSE"

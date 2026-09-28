@@ -6,8 +6,8 @@ const path = require('path');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
-const entriesRoutes = require('./routes/entries');
 const chargingRoutes = require('./routes/charging');
+const vehiclesRoutes = require('./routes/vehicles');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,21 +18,20 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting — generous limit for a LAN app
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 2000
 });
 app.use(limiter);
 
 // CORS configuration
 app.use(cors({
     origin: [
-        process.env.FRONTEND_URL || 'http://localhost:5000',
-        'https://regulus.bytboyzserver.xyz',
-        'http://regulus.bytboyzserver.xyz',
+        'http://localhost:5000',
+        'http://localhost:3002',
         'http://localhost:5002',
-        'http://localhost:3002'
+        'http://192.168.1.250:5002'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -43,10 +42,16 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded vehicle photos (allow cross-origin — frontend is on a different port)
+app.use('/uploads', (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+}, express.static(path.join(__dirname, 'uploads')));
+
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/entries', entriesRoutes);
 app.use('/api/charging', chargingRoutes);
+app.use('/api/vehicles', vehiclesRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
