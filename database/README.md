@@ -43,7 +43,7 @@ The database uses the following environment variables:
 
 ## Running with Docker
 
-The database is configured to run as part of the Docker Compose setup. The data is persisted in a Docker volume named `postgres_data`.
+The database is configured to run as part of the Docker Compose setup. The data is persisted in a Docker volume named `postgres18_data` (PostgreSQL 18).
 
 ## Manual Setup
 

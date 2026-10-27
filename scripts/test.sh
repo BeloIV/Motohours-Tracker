@@ -15,7 +15,7 @@ trap cleanup EXIT
 
 docker network create "$ID" >/dev/null
 docker run -d --name "$ID-db" --network "$ID" \
-  -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=test postgres:15-alpine >/dev/null
+  -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=test postgres:18-alpine >/dev/null
 until docker exec "$ID-db" pg_isready -U test -d test -q; do sleep 1; done
 sleep 2
 

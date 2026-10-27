@@ -16,7 +16,8 @@ services:
       # Only read when the volume is first initialised
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-motohours_password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # Postgres 18 images keep data in /var/lib/postgresql/18/docker
+      - postgres18_data:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U motohours_user -d motohours_db"]
@@ -66,5 +67,5 @@ networks:
         - subnet: 172.23.0.0/16
 
 volumes:
-  postgres_data:
+  postgres18_data:
   uploads_data:
