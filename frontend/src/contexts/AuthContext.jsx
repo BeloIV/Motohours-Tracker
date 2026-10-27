@@ -35,7 +35,10 @@ export const AuthProvider = ({ children }) => {
   axios.interceptors.response.use(
     (response) => response,
     (error) => {
-      if (error.response?.status === 401 || error.response?.status === 403) {
+      // Only 401 means the session is gone; 403 is "not allowed" (e.g. not an
+      // admin) and a failed login is a 401 that must not show "session expired"
+      const isLogin = error.config?.url?.endsWith('/auth/login')
+      if (error.response?.status === 401 && !isLogin && localStorage.getItem('token')) {
         localStorage.removeItem('token')
         setUser(null)
         toast.error('Relácia vypršala. Prihláste sa znova.')

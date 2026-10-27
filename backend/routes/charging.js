@@ -1,6 +1,7 @@
 const express = require('express');
 const { runQuery, getAll, getRow } = require('../database/database');
 const { authenticateToken } = require('../middleware/auth');
+const { parseId } = require('../utils/validation');
 
 const router = express.Router();
 
@@ -74,7 +75,8 @@ router.get('/', async (req, res) => {
 // Start charging session (one active session per vehicle)
 router.post('/start', async (req, res) => {
     try {
-        const { vehicle_id, motohours, battery_start } = req.body;
+        const { motohours, battery_start } = req.body;
+        const vehicle_id = parseId(req.body.vehicle_id);
         const userId = req.user.id;
 
         if (!vehicle_id) {
@@ -89,14 +91,14 @@ router.post('/start', async (req, res) => {
             return res.status(400).json({ error: 'Zadajte stav batérie pred nabíjaním' });
         }
 
-        const mh = parseFloat(motohours);
-        const batteryStart = parseInt(battery_start);
+        const mh = (typeof motohours === 'number' || typeof motohours === 'string') ? Number(motohours) : NaN;
+        const batteryStart = (typeof battery_start === 'number' || typeof battery_start === 'string') ? Number(battery_start) : NaN;
 
-        if (isNaN(mh) || mh < 0) {
+        if (!Number.isFinite(mh) || mh < 0 || mh > 99999999) {
             return res.status(400).json({ error: 'Motohodiny musia byť kladné číslo' });
         }
 
-        if (isNaN(batteryStart) || batteryStart < 0 || batteryStart > 100) {
+        if (!Number.isInteger(batteryStart) || batteryStart < 0 || batteryStart > 100) {
             return res.status(400).json({ error: 'Stav batérie musí byť medzi 0 a 100' });
         }
 
@@ -151,7 +153,8 @@ router.post('/start', async (req, res) => {
 // Stop active charging session for a specific vehicle
 router.post('/stop', async (req, res) => {
     try {
-        const { vehicle_id, battery_end } = req.body;
+        const { battery_end } = req.body;
+        const vehicle_id = parseId(req.body.vehicle_id);
 
         if (!vehicle_id) {
             return res.status(400).json({ error: 'Vyberte vozík na zastavenie nabíjania' });
@@ -161,8 +164,8 @@ router.post('/stop', async (req, res) => {
             return res.status(400).json({ error: 'Zadajte stav batérie po nabíjaní' });
         }
 
-        const batteryEnd = parseInt(battery_end);
-        if (isNaN(batteryEnd) || batteryEnd < 0 || batteryEnd > 100) {
+        const batteryEnd = (typeof battery_end === 'number' || typeof battery_end === 'string') ? Number(battery_end) : NaN;
+        if (!Number.isInteger(batteryEnd) || batteryEnd < 0 || batteryEnd > 100) {
             return res.status(400).json({ error: 'Stav batérie musí byť medzi 0 a 100' });
         }
 
@@ -315,11 +318,16 @@ router.get('/stats', async (req, res) => {
 // Who corrected what on this session, oldest first
 router.get('/:id/history', async (req, res) => {
     try {
+        const id = parseId(req.params.id);
+        if (!id) {
+            return res.status(404).json({ error: 'Relácia nebola nájdená' });
+        }
+
         const session = await getRow(`
             SELECT cs.id FROM charging_sessions cs
             JOIN users u ON cs.user_id = u.id
             WHERE cs.id = $1 AND u.company_id = $2
-        `, [req.params.id, req.user.company_id]);
+        `, [id, req.user.company_id]);
 
         if (!session) {
             return res.status(404).json({ error: 'Relácia nebola nájdená' });
@@ -331,7 +339,7 @@ router.get('/:id/history', async (req, res) => {
             LEFT JOIN users u ON c.user_id = u.id
             WHERE c.session_id = $1
             ORDER BY c.changed_at ASC, c.id ASC
-        `, [req.params.id]);
+        `, [id]);
 
         res.json({ changes });
     } catch (error) {
@@ -343,11 +351,16 @@ router.get('/:id/history', async (req, res) => {
 // Delete charging session (creator, whoever stopped it, or an admin)
 router.delete('/:id', async (req, res) => {
     try {
+        const id = parseId(req.params.id);
+        if (!id) {
+            return res.status(404).json({ error: 'Relácia nebola nájdená' });
+        }
+
         const session = await getRow(`
             SELECT cs.* FROM charging_sessions cs
             JOIN users u ON cs.user_id = u.id
             WHERE cs.id = $1 AND u.company_id = $2
-        `, [req.params.id, req.user.company_id]);
+        `, [id, req.user.company_id]);
 
         if (!session) {
             return res.status(404).json({ error: 'Relácia nebola nájdená alebo prístup zamietnutý' });
@@ -365,7 +378,7 @@ router.delete('/:id', async (req, res) => {
             return res.status(403).json({ error: 'Vymazať záznam môže iba ten, kto nabíjanie spustil alebo zastavil' });
         }
 
-        await runQuery('DELETE FROM charging_sessions WHERE id = $1', [req.params.id]);
+        await runQuery('DELETE FROM charging_sessions WHERE id = $1', [id]);
 
         res.json({ message: 'Nabíjacia relácia bola úspešne vymazaná' });
 

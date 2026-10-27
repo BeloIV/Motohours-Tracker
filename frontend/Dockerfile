@@ -1,13 +1,12 @@
-FROM node:18-alpine as build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci --no-fund --no-audit
 COPY . .
 RUN npm run build
 
-FROM node:18-alpine as serve
-WORKDIR /app
-RUN npm install -g serve
-COPY --from=build /app/dist ./dist
-EXPOSE 5000
-CMD ["serve", "-s", "dist", "-l", "5000"] 
+FROM nginx:1.27-alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY security-headers.conf proxy-headers.conf /etc/nginx/snippets/
+EXPOSE 80

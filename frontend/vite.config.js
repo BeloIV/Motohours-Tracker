@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5002,
-    allowedHosts: ['regulus.bytboyzserver.xyz'],
+    // No allowedHosts: the public host must never reach the dev server
     proxy: {
       '/api': {
         target: process.env.BACKEND_URL || 'http://localhost:3002',
@@ -20,6 +20,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: false
   }
 }) 

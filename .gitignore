@@ -106,11 +106,12 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Docker
-.dockerignore
+# Docker (.dockerignore files are tracked)
 
 # Local development
 *.local
 
 
 
+
+backups/

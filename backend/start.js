@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const { getJwtSecret } = require('./config');
 const { initializeDatabase } = require('./database/database.js');
 
 // Function to wait for database to be ready
@@ -41,6 +42,14 @@ async function waitForDatabase() {
 // Start the application
 async function startApp() {
     console.log('🚀 Starting Motohours Tracker Backend...');
+
+    // Refuse to start with a missing or well-known signing secret
+    try {
+        getJwtSecret();
+    } catch (error) {
+        console.error(`❌ ${error.message}`);
+        process.exit(1);
+    }
     
     // Wait for database to be ready
     const dbReady = await waitForDatabase();

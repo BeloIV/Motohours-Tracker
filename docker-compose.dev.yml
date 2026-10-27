@@ -1,0 +1,16 @@
+# Hot reload on the LAN only — never point the public host at this.
+#   docker compose down && docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+services:
+  frontend:
+    # Own tag, or dev silently runs whatever image prod built last
+    image: motohours-tracker-frontend-dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    # Compose merges port lists; !override keeps only the Vite port
+    ports: !override ["5002:5002"]
+    environment:
+      - BACKEND_URL=http://backend:3000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

@@ -1,82 +1,119 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { getRow, runQuery } = require('../database/database');
+const { pool, getRow, runQuery } = require('../database/database');
 const { generateToken, authenticateToken } = require('../middleware/auth');
+const { loginPerMinute, loginPerHour, registerPerHour, inviteLookup } = require('../middleware/rateLimits');
+const { text, passwordProblem } = require('../utils/validation');
 
 const router = express.Router();
 
 // Registration route
 // With invite_token: join that company as regular user
 // Without invite_token: create new company, become admin
-router.post('/register', async (req, res) => {
+router.post('/register', registerPerHour, async (req, res) => {
+    const body = req.body || {};
+    const username = text(body.username, 50);
+    const { password, invite_token } = body;
+
+    if (!username || typeof password !== 'string' || !password) {
+        return res.status(400).json({ error: 'Používateľské meno a heslo sú povinné' });
+    }
+
+    if (/[\u0000-\u001f\u007f]/.test(username)) {
+        return res.status(400).json({ error: 'Používateľské meno obsahuje nepovolené znaky' });
+    }
+
+    const problem = passwordProblem(password);
+    if (problem) {
+        return res.status(400).json({ error: problem });
+    }
+
+    if (invite_token !== undefined && invite_token !== null && invite_token !== ''
+        && (typeof invite_token !== 'string' || invite_token.length > 255)) {
+        return res.status(400).json({ error: 'Neplatný alebo použitý pozývací kód' });
+    }
+
+    // Hash before opening the transaction — nothing is written if this fails
+    let passwordHash;
+    let client;
     try {
-        const { username, password, invite_token } = req.body;
+        passwordHash = await bcrypt.hash(password, 10);
+        client = await pool.connect();
+    } catch (error) {
+        console.error('Registration error:', error);
+        return res.status(500).json({ error: 'Interná chyba servera' });
+    }
 
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Používateľské meno a heslo sú povinné' });
-        }
+    try {
+        await client.query('BEGIN');
 
-        if (password.length < 6) {
-            return res.status(400).json({ error: 'Heslo musí mať aspoň 6 znakov' });
-        }
-
-        const existingUser = await getRow('SELECT id FROM users WHERE username = $1', [username]);
-        if (existingUser) {
+        const existingUser = await client.query('SELECT id FROM users WHERE username = $1', [username]);
+        if (existingUser.rows.length) {
+            await client.query('ROLLBACK');
             return res.status(400).json({ error: 'Používateľ s týmto menom už existuje' });
         }
 
         let companyId;
         let role;
-        let invite = null;
 
         if (invite_token) {
-            invite = await getRow(
-                'SELECT * FROM invites WHERE token = $1 AND used = FALSE',
+            // Claim the invite atomically so it can only be used once
+            const invite = await client.query(
+                'UPDATE invites SET used = TRUE WHERE token = $1 AND used = FALSE RETURNING company_id',
                 [invite_token]
             );
-            if (!invite) {
+            if (!invite.rows.length) {
+                await client.query('ROLLBACK');
                 return res.status(400).json({ error: 'Neplatný alebo použitý pozývací kód' });
             }
-            companyId = invite.company_id;
+            companyId = invite.rows[0].company_id;
             role = 'user';
         } else {
-            const company = await runQuery(
+            const company = await client.query(
                 'INSERT INTO companies (name) VALUES ($1) RETURNING id',
                 [username + "'s Company"]
             );
-            companyId = company.id;
+            companyId = company.rows[0].id;
             role = 'admin';
         }
 
-        const passwordHash = await bcrypt.hash(password, 10);
-        const result = await runQuery(
+        const result = await client.query(
             'INSERT INTO users (username, password_hash, role, company_id) VALUES ($1, $2, $3, $4) RETURNING id, username',
             [username, passwordHash, role, companyId]
         );
 
-        if (invite) {
-            await runQuery('UPDATE invites SET used = TRUE WHERE id = $1', [invite.id]);
-        }
+        await client.query('COMMIT');
 
         res.status(201).json({
             message: 'Používateľ bol úspešne vytvorený',
-            user: { id: result.id, username: result.rows[0].username, role }
+            user: { id: result.rows[0].id, username: result.rows[0].username, role }
         });
 
     } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        if (error.code === '23505') {
+            return res.status(400).json({ error: 'Používateľ s týmto menom už existuje' });
+        }
         console.error('Registration error:', error);
         res.status(500).json({ error: 'Interná chyba servera' });
+    } finally {
+        client.release();
     }
 });
 
 // Login route
-router.post('/login', async (req, res) => {
+router.post('/login', loginPerHour, loginPerMinute, async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password } = req.body || {};
 
-        if (!username || !password) {
+        if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
             return res.status(400).json({ error: 'Používateľské meno a heslo sú povinné' });
+        }
+
+        // bcrypt only looks at the first 72 bytes; never accept a longer string
+        if (username.length > 255 || Buffer.byteLength(password, 'utf8') > 72) {
+            return res.status(401).json({ error: 'Neplatné používateľské meno alebo heslo' });
         }
 
         const user = await getRow('SELECT * FROM users WHERE username = $1', [username]);
@@ -149,7 +186,7 @@ router.post('/invite', authenticateToken, async (req, res) => {
 });
 
 // Validate invite token — public route used to show company name on register form
-router.get('/invite/:token', async (req, res) => {
+router.get('/invite/:token', inviteLookup, async (req, res) => {
     try {
         const invite = await getRow(`
             SELECT i.token, i.used, c.name as company_name

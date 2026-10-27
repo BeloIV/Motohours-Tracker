@@ -27,8 +27,8 @@ const Register = ({ inviteToken, onSuccess }) => {
     e.preventDefault()
     setLoading(true)
 
-    if (password.length < 6) {
-      toast.error('Heslo musí mať aspoň 6 znakov')
+    if (password.length < 10) {
+      toast.error('Heslo musí mať aspoň 10 znakov')
       setLoading(false)
       return
     }
@@ -107,7 +107,7 @@ const Register = ({ inviteToken, onSuccess }) => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Min. 6 znakov"
+              placeholder="Min. 10 znakov"
               className="form-control"
               disabled={loading}
             />
